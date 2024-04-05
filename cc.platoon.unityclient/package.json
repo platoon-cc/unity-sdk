@@ -1,0 +1,19 @@
+{
+  "name": "cc.platoon.unityclient",
+  "displayName": "PlatoonSDK",
+  "version": "0.0.1",
+  "unity": "2019.4",
+  "author": {
+    "name": "Lee Hickey",
+    "email": "lee@platoon.cc",
+    "url": "https://platoon.cc"
+  },
+  "license": "MIT",
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/platoon-cc/unityclient"
+  },
+  "keywords": [],
+  "description": "Unity SDK for interating with the Platoon liveops platform"
+}
