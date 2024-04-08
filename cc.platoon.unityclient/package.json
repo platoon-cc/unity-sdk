@@ -1,19 +1,19 @@
 {
-  "name": "cc.platoon.unityclient",
-  "displayName": "PlatoonSDK",
-  "version": "0.0.1",
-  "unity": "2019.4",
-  "author": {
-    "name": "Lee Hickey",
-    "email": "lee@platoon.cc",
-    "url": "https://platoon.cc"
-  },
-  "license": "MIT",
-  "dependencies": {},
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/platoon-cc/unityclient"
-  },
-  "keywords": [],
-  "description": "Unity SDK for interating with the Platoon liveops platform"
+	"author": {
+		"email": "lee@platoon.cc",
+		"name": "Lee Hickey",
+		"url": "https://platoon.cc"
+	},
+	"dependencies": {},
+	"description": "Unity SDK for interacting with the Platoon liveops platform",
+	"displayName": "PlatoonSDK",
+	"keywords": [],
+	"license": "MIT",
+	"name": "cc.platoon.unityclient",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/platoon-cc/unityclient"
+	},
+	"unity": "2019.4",
+	"version": "0.0.3"
 }
