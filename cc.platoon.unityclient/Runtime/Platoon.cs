@@ -7,66 +7,122 @@ using SimpleJSON;
 
 namespace Platoon {
     public class PlatoonSDK {
+        public string BaseUrl {get;set;}
  
-        public MonoBehaviour _parent;
-        public string BaseUrl {get;set;} 
-        public string accessToken {get;set;} 
-        private readonly JSONArray jsonNode;
-
-        public PlatoonSDK() {
+        private MonoBehaviour parent;
+        private string accessToken;
+        private readonly JSONArray eventBuffer;
+        private int eventMaxToBuffer = 50;
+        private string userId;
+        private Dictionary<string, object> userPayload;
+        private Dictionary<string, object> sessionPayload;
+        private IEnumerator heartbeatCoroutine;
+        private int heartbeatFrequency = 20;
+        public PlatoonSDK(MonoBehaviour _parent, string _accessToken) {
             BaseUrl = "https://platoon.cc";
-            jsonNode = new JSONArray();
+            parent = _parent;
+            accessToken = _accessToken;
+            eventBuffer = new JSONArray();
+            Debug.Log("Platoon: Opening");
+            StartHeartbeat();
         }
 
-        public void AddEvent(string name, Dictionary<string, object> payload) {
-            var node = new JSONObject
+        public void Close() {
+            Debug.Log("Platoon: Closing");
+            EndHeartbeat();
+            AddEvent("$sessionEnd");
+            SendEvents();
+        }
+
+        public void SetUser(string _userId, Dictionary<string, object> payload) {
+            userId = _userId;
+            userPayload = payload;
+            AddEvent("$identify", userPayload);
+        }
+
+        public void SetSession(Dictionary<string, object> payload) {
+            sessionPayload = payload;
+            AddEvent("$sessionBegin", sessionPayload);
+        }
+
+        public void AddEvent(string name) {
+            eventBuffer.Add(new JSONObject
             {
                 { "event", name },
                 { "timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
-                { "user_id", "fred" },
-                { "payload", payload.ToJSONNode() }
-            };
-
-            //jsonNode.Add(node);
-            // Debug.Log(jsonNode.ToString());
-            _parent.StartCoroutine(PostRequest("api/ingest", node.ToString()));
-            // _parent.StartCoroutine(GetRequest("api/test"));
-            //jsonNode.Clear();
+                { "user_id", userId },
+            });
+            if (eventBuffer.Count >= eventMaxToBuffer) {
+                SendEvents();
+            }
         }
 
-        public IEnumerator PostRequest(string uri, string data) {
+        public void AddEvent(string name, Dictionary<string, object> payload) {
+            eventBuffer.Add(new JSONObject
+            {
+                { "event", name },
+                { "timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
+                { "user_id", userId },
+                { "payload", payload.ToJSONNode() }
+            });
+            if (eventBuffer.Count >= eventMaxToBuffer) {
+                SendEvents();
+            }
+        }
+
+        private void SendEvents() {
+            if (eventBuffer.Count > 0) {
+                var json = eventBuffer.ToString();
+                Debug.LogFormat("Platoon: Sending {0} events: {1}", eventBuffer.Count, json);
+                parent.StartCoroutine(PostRequest("api/ingest", json));
+                // TODO : generally better approach to dealing with memory - freelists etc
+                // Probably some sort of double-buffering too, in case the send fails
+                eventBuffer.Clear();
+            }
+        }
+
+        private IEnumerator PostRequest(string uri, string data) {
             string endPoint = BaseUrl + "/" + uri;
             using (UnityWebRequest webRequest = UnityWebRequest.Post(endPoint, data, "application/json")) {
                 webRequest.SetRequestHeader("X-API-KEY", accessToken);
                 yield return webRequest.SendWebRequest();
-            }
-        }
-        public IEnumerator GetRequest(string uri)
-        {
-            string endPoint = BaseUrl + "/" + uri;
-            Debug.Log("Calling:" + endPoint);
-            using (UnityWebRequest webRequest = UnityWebRequest.Get(endPoint))
-            {
-                // Request and wait for the desired page.
-                yield return webRequest.SendWebRequest();
-
-                string[] pages = uri.Split('/');
-                int page = pages.Length - 1;
-
+                
                 switch (webRequest.result)
                 {
                     case UnityWebRequest.Result.ConnectionError:
                     case UnityWebRequest.Result.DataProcessingError:
-                        Debug.LogError(pages[page] + ": Error: " + webRequest.error);
+                        Debug.LogError("Platoon: Error: " + webRequest.error);
                         break;
                     case UnityWebRequest.Result.ProtocolError:
-                        Debug.LogError(pages[page] + ": HTTP Error: " + webRequest.error);
+                        Debug.LogError("Platoon: HTTP Error: " + webRequest.error);
                         break;
                     case UnityWebRequest.Result.Success:
-                        Debug.Log(pages[page] + ":\nReceived: " + webRequest.downloadHandler.text);
+                        Debug.Log("Platoon: Received: " + webRequest.downloadHandler.text);
                         break;
                 }
             }
         }
+
+        private IEnumerator Heartbeat()
+        {
+            yield return new WaitForSecondsRealtime(heartbeatFrequency);
+            Debug.Log("Platoon: Heartbeat");
+            SendEvents();
+        }        
+
+        private void StartHeartbeat() {
+            heartbeatCoroutine = Heartbeat();
+            parent.StartCoroutine(heartbeatCoroutine);
+        }
+
+        private void EndHeartbeat()
+        {
+            if (heartbeatCoroutine != null)
+            {
+                parent.StopCoroutine(heartbeatCoroutine);
+                heartbeatCoroutine = null;
+            }
+        }
+
     }
 }

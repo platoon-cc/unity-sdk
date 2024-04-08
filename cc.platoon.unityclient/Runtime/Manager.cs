@@ -3,33 +3,36 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace Platoon {
+    [DisallowMultipleComponent]
     public class PlatoonManager : MonoBehaviour {
         public bool debugMode = false;
-        public string debugUrl = "http://localhost:9999";
+        public string debugUrl = "http://localhost:9998";
         public string accessToken = "";
 
         PlatoonSDK s_instance;
 
         public void Start() {
             Debug.Log("Starting PlatoonManager");
-            s_instance = new PlatoonSDK
-            {
-                accessToken = accessToken,
-                _parent = this
-            };
+            s_instance = new PlatoonSDK(this, accessToken);
             if (debugMode) {
                 s_instance.BaseUrl = debugUrl;
             }
 
-            s_instance.AddEvent("test", new Dictionary<string, object> {
+            s_instance.SetUser("steam#40", new Dictionary<string, object> {
                 {"name", "fred"},
-                {"score", new List<int>{1,2}}
+                {"payment_tier", "none"}
             });
 
-            s_instance.AddEvent("test2", new Dictionary<string, object> {
-                {"name", "fred"},
-                {"score", new List<int>{1,2}}
-            });   
+            s_instance.SetSession(new Dictionary<string, object> {
+                {"branch", "developer"},
+                {"vendor", "steam"},
+                {"version", "0.1.6669"}
+            });
+        }
+
+        // TODO : Do we ned to deal with OnAPplicationFocus & OnApplicationPause?
+        public void OnApplicationQuit() {
+            s_instance.Close();
         }
     }
 }
