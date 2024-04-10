@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 using SimpleJSON;
@@ -83,7 +84,7 @@ namespace Platoon {
 
         private IEnumerator PostRequest(string uri, string data) {
             string endPoint = BaseUrl + "/" + uri;
-            using (UnityWebRequest webRequest = UnityWebRequest.Post(endPoint, data, "application/json")) {
+            using (UnityWebRequest webRequest = CreatePost(endPoint, data, "application/json")) {
                 webRequest.SetRequestHeader("X-API-KEY", accessToken);
                 yield return webRequest.SendWebRequest();
                 
@@ -101,6 +102,18 @@ namespace Platoon {
                         break;
                 }
             }
+        }
+
+        private UnityWebRequest CreatePost(string url, string postData, string contentType)
+        {
+            var request = new UnityWebRequest(url, "POST");
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", contentType);
+            
+            byte[] postRaw = Encoding.UTF8.GetBytes(postData);
+            request.uploadHandler = new UploadHandlerRaw(postRaw);
+            request.uploadHandler.contentType = contentType;
+            return request;
         }
 
         private IEnumerator Heartbeat()

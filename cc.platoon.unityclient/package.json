@@ -14,6 +14,6 @@
 		"type": "git",
 		"url": "git+https://github.com/platoon-cc/unityclient"
 	},
-	"unity": "2019.4",
-	"version": "0.0.3"
+	"unity": "2021.3",
+	"version": "0.0.4"
 }
