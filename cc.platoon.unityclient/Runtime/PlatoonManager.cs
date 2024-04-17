@@ -2,19 +2,30 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Platoon {
+namespace Platoon
+{
     [DisallowMultipleComponent]
-    public class PlatoonManager : MonoBehaviour {
+    public class PlatoonManager : MonoBehaviour
+    {
+
+        // Activates sending (default true)
+        // turning this off allows an integration to leave the event-sending code
+        // in place but avoid any sending, processing or memory overhead
+        public bool sendEvents = true;
+
         public bool debugMode = false;
         public string debugUrl = "http://localhost:9998";
         public string accessToken = "";
 
         PlatoonSDK s_instance;
 
-        public void Start() {
+        public void Start()
+        {
             Debug.Log("Starting PlatoonManager");
-            s_instance = new PlatoonSDK(this, accessToken);
-            if (debugMode) {
+            s_instance = new PlatoonSDK(this, accessToken, sendEvents);
+
+            if (debugMode)
+            {
                 s_instance.BaseUrl = debugUrl;
             }
 
@@ -30,8 +41,9 @@ namespace Platoon {
             });
         }
 
-        // TODO : Do we ned to deal with OnAPplicationFocus & OnApplicationPause?
-        public void OnApplicationQuit() {
+        // TODO : Do we need to deal with OnAPplicationFocus & OnApplicationPause?
+        public void OnApplicationQuit()
+        {
             s_instance.Close();
         }
     }
