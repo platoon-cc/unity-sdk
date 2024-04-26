@@ -44,7 +44,7 @@ func main() {
 
 // load in the package.json
 func modPackageJson(version string) error {
-	packageSrc := "./cc.platoon.unityclient/package.json"
+	packageSrc := "./cc.platoon.unity-sdk/package.json"
 
 	data, err := os.ReadFile(packageSrc)
 	if err != nil {

@@ -9,11 +9,11 @@
 	"displayName": "PlatoonSDK",
 	"keywords": [],
 	"license": "MIT",
-	"name": "cc.platoon.unityclient",
+	"name": "cc.platoon.unity-sdk",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/platoon-cc/unityclient"
+		"url": "git+https://github.com/platoon-cc/unity-sdk"
 	},
 	"unity": "2021.3",
-	"version": "0.0.5"
+	"version": "0.0.7"
 }

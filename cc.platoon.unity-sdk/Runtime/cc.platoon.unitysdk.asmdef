@@ -1,5 +1,5 @@
 {
-    "name": "cc.platoon.unityclient",
+    "name": "cc.platoon.unity-sdk",
     "rootNamespace": "Platoon",
     "references": [],
     "includePlatforms": [

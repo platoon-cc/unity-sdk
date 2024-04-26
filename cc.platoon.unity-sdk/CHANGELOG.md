@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.0.7
+
+### Changed
+
+- The name of the package changed to be in keeping with the other ones. Apologies for the inconvenience
+
 ## 0.0.5
 
 ### Added

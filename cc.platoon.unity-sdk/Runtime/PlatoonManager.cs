@@ -29,8 +29,8 @@ namespace Platoon
                 s_instance.BaseUrl = debugUrl;
             }
 
-            s_instance.SetUser("steam#40", new Dictionary<string, object> {
-                {"name", "fred"},
+            s_instance.SetUser("steam#42", new Dictionary<string, object> {
+                {"name", "bob"},
                 {"payment_tier", "none"}
             });
 
