@@ -33,6 +33,10 @@ func main() {
 		log.Fatalf("%v\n", err)
 	}
 
+	if err := modRuntimeVersion(newVers); err != nil {
+		log.Fatalf("%v\n", err)
+	}
+
 	verFile, err := os.Create(".version")
 	if err != nil {
 		log.Fatalf("failed to parse git output: %v", err)
@@ -60,4 +64,17 @@ func modPackageJson(version string) error {
 
 	b, _ := json.MarshalIndent(pkg, "", "\t")
 	return os.WriteFile(packageSrc, b, 0755)
+}
+
+func modRuntimeVersion(version string) error {
+	v := `namespace Platoon
+{
+	public class Version
+	{
+		public static string SDK = "unity %s";
+	}
+}`
+
+	os.WriteFile("./cc.platoon.unity-sdk/Runtime/Version.cs", []byte(fmt.Sprintf(v, version)), 0755)
+	return nil
 }

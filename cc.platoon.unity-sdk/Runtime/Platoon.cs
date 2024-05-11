@@ -4,23 +4,25 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
+
 using SimpleJSON;
-using System.Data;
+using UnityEditorInternal;
 
 namespace Platoon
 {
     public class PlatoonSDK
     {
-        private bool _sendingActive = false;
+        private bool _active = false;
         private MonoBehaviour _parent;
         private string _accessToken;
         private JSONArray _eventBuffer;
         private int _eventMaxToBuffer = 50;
-        private string _userId;
-        private Dictionary<string, object> _userPayload;
-        private Dictionary<string, object> _sessionPayload;
+        private JSONObject _commonPayload = new() { };
+        private JSONObject _initPayload = new() { };
         private IEnumerator _heartbeatCoroutine;
         private int _heartbeatFrequency = 20;
+
+        private delegate void Callback(string data);
 
         // Public interface
         public string BaseUrl { get; set; }
@@ -30,40 +32,66 @@ namespace Platoon
             this._parent = parent;
             this._accessToken = accessToken;
             Debug.Log("Platoon: Opening");
-            this.ActivateSend(active);
+
+            _initPayload.Add("version", Application.version);
+            _initPayload.Add("platform", Application.platform.ToString());
+            _initPayload.Add("device", SystemInfo.deviceModel);
+            _initPayload.Add("os", SystemInfo.operatingSystem);
+            _initPayload.Add("sdk", Version.SDK);
+
+            this.Activate(active);
         }
 
         public void Close()
         {
+            _initPayload = null;
             Debug.Log("Platoon: Closing");
             AddEvent("$sessionEnd");
             SendEvents();
-            this.ActivateSend(false);
+            this.Activate(false);
         }
 
-        public void SetUser(string _userId, Dictionary<string, object> payload)
+        public void SetUserID(string _userId)
         {
-            this._userId = _userId;
-            _userPayload = payload;
-            AddEvent("$identify", _userPayload);
+            _commonPayload.Add("user_id", _userId);
         }
 
-        public void SetSession(Dictionary<string, object> payload)
+        public void SetCustomSessionData(string key, object value)
         {
-            _sessionPayload = payload;
-            AddEvent("$sessionBegin", _sessionPayload);
+            _initPayload.Add(key, JSON.ToJSONNode(value));
+        }
+
+        public void StartSession()
+        {
+            Debug.Log(_initPayload.ToString());
+
+            var newEvent = new JSONObject
+            {
+                { "user_id", _commonPayload["user_id"] },
+                { "payload", _initPayload }
+            };
+            var data = newEvent.ToString();
+            Debug.LogFormat("Platoon: Sending init {0}", data);
+            _parent.StartCoroutine(Post("api/init", data, CallbackInit));
+        }
+
+        void CallbackInit(string data)
+        {
+            Debug.Log("Callback received: " + data);
+            var parsed = JSON.Parse(data);
+            // var server_ts = parsed["server_ts"];
+            // Debug.Log(server_ts);
+            _commonPayload.Add("session_id", parsed["session_id"]);
         }
 
         public void AddEvent(string name)
         {
-            if (_sendingActive)
+            if (_active)
             {
-                _eventBuffer.Add(new JSONObject
-                {
-                    { "event", name },
-                    { "timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
-                    { "user_id", _userId },
-                });
+                var newEvent = _commonPayload.Clone();
+                newEvent.Add("event", name);
+                newEvent.Add("timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                _eventBuffer.Add(newEvent);
                 if (_eventBuffer.Count >= _eventMaxToBuffer)
                 {
                     SendEvents();
@@ -73,15 +101,12 @@ namespace Platoon
 
         public void AddEvent(string name, Dictionary<string, object> payload)
         {
-            if (_sendingActive)
+            if (_active)
             {
-                _eventBuffer.Add(new JSONObject
-                {
-                    { "event", name },
-                    { "timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
-                    { "user_id", _userId },
-                    { "payload", payload.ToJSONNode() }
-                });
+                var newEvent = _commonPayload.Clone();
+                newEvent.Add("event", name);
+                newEvent.Add("timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                newEvent.Add("payload", payload.ToJSONNode());
                 if (_eventBuffer.Count >= _eventMaxToBuffer)
                 {
                     SendEvents();
@@ -107,10 +132,9 @@ namespace Platoon
             }
         }
 
-        private void ActivateSend(bool enable)
+        private void Activate(bool enable)
         {
-            // Debug.LogFormat("ActivateSend {0} {1}", enable, _sendingActive);
-            if (enable != _sendingActive)
+            if (enable != _active)
             {
                 if (enable)
                 {
@@ -122,19 +146,20 @@ namespace Platoon
                     _eventBuffer = null;
                     EndHeartbeat();
                 }
-                _sendingActive = enable;
+                _active = enable;
             }
         }
 
         private void SendEvents()
         {
-            if (_sendingActive)
+            if (_active)
             {
                 if (_eventBuffer.Count > 0)
                 {
-                    var json = _eventBuffer.ToString();
                     Debug.LogFormat("Platoon: Sending {0} events", _eventBuffer.Count);
-                    _parent.StartCoroutine(PostRequest("api/ingest", json));
+                    var data = _eventBuffer.ToString();
+                    _parent.StartCoroutine(Post("api/ingest", data));
+
                     // TODO : generally better approach to dealing with memory - freelists etc
                     // Probably some sort of double-buffering too, in case the send fails
                     _eventBuffer.Clear();
@@ -149,41 +174,41 @@ namespace Platoon
             SendEvents();
         }
 
-        private IEnumerator PostRequest(string uri, string data)
+        private IEnumerator Post(string uri, string data, Callback cb = null)
         {
-            string endPoint = BaseUrl + "/" + uri;
-            using (UnityWebRequest webRequest = CreatePost(endPoint, data, "application/json"))
-            {
-                webRequest.SetRequestHeader("X-API-KEY", _accessToken);
-                yield return webRequest.SendWebRequest();
+            using UnityWebRequest webRequest = CreatePost(uri, data);
+            yield return webRequest.SendWebRequest();
 
-                switch (webRequest.result)
-                {
-                    case UnityWebRequest.Result.ConnectionError:
-                    case UnityWebRequest.Result.DataProcessingError:
-                        Debug.LogError("Platoon: Error: " + webRequest.error);
-                        Debug.Log("Disabling any further sending");
-                        this.ActivateSend(false);
-                        break;
-                    case UnityWebRequest.Result.ProtocolError:
-                        Debug.LogError("Platoon: HTTP Error: " + webRequest.error);
-                        break;
-                    case UnityWebRequest.Result.Success:
-                        Debug.Log("Platoon: Received: " + webRequest.downloadHandler.text);
-                        break;
-                }
+            switch (webRequest.result)
+            {
+                case UnityWebRequest.Result.ConnectionError:
+                case UnityWebRequest.Result.DataProcessingError:
+                    Debug.LogError("Platoon: Error: " + webRequest.error);
+                    Debug.Log("Disabling any further sending");
+                    this.Activate(false);
+                    break;
+                case UnityWebRequest.Result.ProtocolError:
+                    Debug.LogError("Platoon: HTTP Error: " + webRequest.error);
+                    break;
+                case UnityWebRequest.Result.Success:
+                    cb?.Invoke(webRequest.downloadHandler.text);
+                    break;
             }
         }
 
-        private UnityWebRequest CreatePost(string url, string postData, string contentType)
+        private UnityWebRequest CreatePost(string uri, string data)
         {
-            var request = new UnityWebRequest(url, "POST");
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", contentType);
-
-            byte[] postRaw = Encoding.UTF8.GetBytes(postData);
-            request.uploadHandler = new UploadHandlerRaw(postRaw);
-            request.uploadHandler.contentType = contentType;
+            string url = BaseUrl + "/" + uri;
+            byte[] postRaw = Encoding.UTF8.GetBytes(data);
+            var request = new UnityWebRequest(url, "POST")
+            {
+                downloadHandler = new DownloadHandlerBuffer(),
+                uploadHandler = new UploadHandlerRaw(postRaw)
+                {
+                    contentType = "application/json"
+                }
+            };
+            request.SetRequestHeader("X-API-KEY", _accessToken);
             return request;
         }
 
