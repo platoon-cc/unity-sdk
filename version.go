@@ -10,6 +10,11 @@ import (
 	"strings"
 )
 
+var (
+	majorVersion = 0
+	minorVersion = 1
+)
+
 func main() {
 	gitPath, err := exec.LookPath("git")
 	if err != nil {
@@ -26,7 +31,7 @@ func main() {
 		log.Fatalf("failed to parse git output: %v", err)
 	}
 
-	newVers := fmt.Sprintf("0.0.%d", count+1)
+	newVers := fmt.Sprintf("%d.%d.%d", majorVersion, minorVersion, count+1)
 	// The current commit isn't the one we're about to commit.
 
 	if err := modPackageJson(newVers); err != nil {

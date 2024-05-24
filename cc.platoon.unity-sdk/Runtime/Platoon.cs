@@ -19,18 +19,23 @@ namespace Platoon
         private int _eventMaxToBuffer = 50;
         private JSONObject _commonPayload = new() { };
         private JSONObject _initPayload = new() { };
+        private JSONObject _flags;
+        private bool _flagsReady = false;
         private IEnumerator _heartbeatCoroutine;
         private int _heartbeatFrequency = 20;
 
-        private delegate void Callback(string data);
+        private delegate void requestCallback(string data);
+        public delegate void readyCallback();
+        private readyCallback _readyCB;
 
         // Public interface
         public string BaseUrl { get; set; }
-        public PlatoonSDK(MonoBehaviour parent, string accessToken, bool active)
+        public PlatoonSDK(MonoBehaviour parent, string accessToken, string userId, bool active)
         {
             BaseUrl = "https://platoon.cc";
             this._parent = parent;
             this._accessToken = accessToken;
+            _commonPayload.Add("user_id", userId);
             Debug.Log("Platoon: Opening");
 
             _initPayload.Add("version", Application.version);
@@ -44,16 +49,36 @@ namespace Platoon
 
         public void Close()
         {
-            _initPayload = null;
             Debug.Log("Platoon: Closing");
             AddEvent("$sessionEnd");
             SendEvents();
             this.Activate(false);
+            _initPayload = null;
+            _commonPayload = null;
         }
 
-        public void SetUserID(string _userId)
+        public void EnableFlags(readyCallback cb)
         {
-            _commonPayload.Add("user_id", _userId);
+            _readyCB = cb;
+        }
+
+        public bool AreFlagsReady()
+        {
+            return _flagsReady;
+        }
+
+        public bool IsFlagActive(string flag)
+        {
+            return _flags.ContainsKey(flag);
+        }
+
+        public object GetFlagPayload(string flag)
+        {
+            JSONNode val;
+            if(_flags.TryGetValue(flag, out val)){
+                return val["payload"];
+            }
+            return null;
         }
 
         public void SetCustomSessionData(string key, object value)
@@ -63,25 +88,43 @@ namespace Platoon
 
         public void StartSession()
         {
-            Debug.Log(_initPayload.ToString());
-
-            var newEvent = new JSONObject
+            if (_active)
             {
-                { "user_id", _commonPayload["user_id"] },
-                { "payload", _initPayload }
-            };
-            var data = newEvent.ToString();
-            Debug.LogFormat("Platoon: Sending init {0}", data);
-            _parent.StartCoroutine(Post("api/init", data, CallbackInit));
+                Debug.Log(_initPayload.ToString());
+
+                var newEvent = new JSONObject{
+                    { "user_id", _commonPayload["user_id"] },
+                    { "payload", _initPayload }
+                };
+
+                _flagsReady = false;
+                if (_readyCB != null)
+                {
+                    newEvent.Add("process_flags", true);
+                }
+
+                var data = newEvent.ToString();
+                Debug.LogFormat("Platoon: Sending init {0}", data);
+                _parent.StartCoroutine(Post("api/init", data, requestCallbackInit));
+            }
         }
 
-        void CallbackInit(string data)
+        void requestCallbackInit(string data)
         {
             Debug.Log("Callback received: " + data);
             var parsed = JSON.Parse(data);
             // var server_ts = parsed["server_ts"];
             // Debug.Log(server_ts);
             _commonPayload.Add("session_id", parsed["session_id"]);
+
+            _flags = parsed["flags"].AsObject;
+            _flagsReady = true;
+            Debug.Log(_flags);
+
+            if (_readyCB != null)
+            {
+                _readyCB();
+            }
         }
 
         public void AddEvent(string name)
@@ -174,7 +217,7 @@ namespace Platoon
             SendEvents();
         }
 
-        private IEnumerator Post(string uri, string data, Callback cb = null)
+        private IEnumerator Post(string uri, string data, requestCallback cb = null)
         {
             using UnityWebRequest webRequest = CreatePost(uri, data);
             yield return webRequest.SendWebRequest();
