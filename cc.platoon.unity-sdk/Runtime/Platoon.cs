@@ -13,6 +13,7 @@ namespace Platoon
     public class PlatoonSDK
     {
         private bool _active = false;
+        private bool _ready = false;
         private MonoBehaviour _parent;
         private string _accessToken;
         private JSONArray _eventBuffer;
@@ -20,7 +21,7 @@ namespace Platoon
         private JSONObject _commonPayload = new() { };
         private JSONObject _initPayload = new() { };
         private JSONObject _flags;
-        private bool _flagsReady = false;
+        private bool _flagsRequired = false;
         private IEnumerator _heartbeatCoroutine;
         private int _heartbeatFrequency = 20;
 
@@ -57,14 +58,14 @@ namespace Platoon
             _commonPayload = null;
         }
 
-        public void EnableFlags(readyCallback cb)
+        public void EnableFlags()
         {
-            _readyCB = cb;
+            _flagsRequired = true;
         }
 
-        public bool AreFlagsReady()
+        public bool IsReady()
         {
-            return _flagsReady;
+            return _ready;
         }
 
         public bool IsFlagActive(string flag)
@@ -75,7 +76,8 @@ namespace Platoon
         public object GetFlagPayload(string flag)
         {
             JSONNode val;
-            if(_flags.TryGetValue(flag, out val)){
+            if (_flags.TryGetValue(flag, out val))
+            {
                 return val["payload"];
             }
             return null;
@@ -86,19 +88,20 @@ namespace Platoon
             _initPayload.Add(key, JSON.ToJSONNode(value));
         }
 
-        public void StartSession()
+        public void StartSession(readyCallback cb)
         {
             if (_active)
             {
-                Debug.Log(_initPayload.ToString());
+                _readyCB = cb;
+                _ready = false;
 
                 var newEvent = new JSONObject{
                     { "user_id", _commonPayload["user_id"] },
-                    { "payload", _initPayload }
+                    { "payload", _initPayload },
+                    { "timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}
                 };
 
-                _flagsReady = false;
-                if (_readyCB != null)
+                if (_flagsRequired)
                 {
                     newEvent.Add("process_flags", true);
                 }
@@ -118,7 +121,7 @@ namespace Platoon
             _commonPayload.Add("session_id", parsed["session_id"]);
 
             _flags = parsed["flags"].AsObject;
-            _flagsReady = true;
+            _ready = true;
             Debug.Log(_flags);
 
             if (_readyCB != null)
@@ -129,27 +132,24 @@ namespace Platoon
 
         public void AddEvent(string name)
         {
-            if (_active)
-            {
-                var newEvent = _commonPayload.Clone();
-                newEvent.Add("event", name);
-                newEvent.Add("timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-                _eventBuffer.Add(newEvent);
-                if (_eventBuffer.Count >= _eventMaxToBuffer)
-                {
-                    SendEvents();
-                }
-            }
+            AddEvent(name, null);
         }
 
         public void AddEvent(string name, Dictionary<string, object> payload)
         {
             if (_active)
             {
+                if (!_ready)
+                {
+                    Debug.LogError("Adding an event before the session is ready");
+                    return;
+                }
                 var newEvent = _commonPayload.Clone();
                 newEvent.Add("event", name);
                 newEvent.Add("timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-                newEvent.Add("payload", payload.ToJSONNode());
+                if (payload != null)
+                    newEvent.Add("payload", payload.ToJSONNode());
+                _eventBuffer.Add(newEvent);
                 if (_eventBuffer.Count >= _eventMaxToBuffer)
                 {
                     SendEvents();
@@ -179,6 +179,7 @@ namespace Platoon
         {
             if (enable != _active)
             {
+                _active = enable;
                 if (enable)
                 {
                     _eventBuffer = new JSONArray();
@@ -189,7 +190,6 @@ namespace Platoon
                     _eventBuffer = null;
                     EndHeartbeat();
                 }
-                _active = enable;
             }
         }
 
@@ -212,9 +212,12 @@ namespace Platoon
 
         private IEnumerator Heartbeat()
         {
-            yield return new WaitForSecondsRealtime(_heartbeatFrequency);
-            Debug.Log("Platoon: Heartbeat");
-            SendEvents();
+            while (_active)
+            {
+                yield return new WaitForSecondsRealtime(_heartbeatFrequency);
+                Debug.Log("Platoon: Heartbeat");
+                SendEvents();
+            }
         }
 
         private IEnumerator Post(string uri, string data, requestCallback cb = null)

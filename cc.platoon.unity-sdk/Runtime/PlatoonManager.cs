@@ -20,7 +20,7 @@ namespace Platoon
         {
             Debug.Log("Starting PlatoonManager");
 
-            s_instance = new PlatoonSDK(this, accessToken, "steam#43", active);
+            s_instance = new PlatoonSDK(this, accessToken, "steam#13", active);
 
             if (debugMode)
             {
@@ -31,6 +31,7 @@ namespace Platoon
             // this can be overridden if required:
             //s_instance.SetCustomSessionData("version", "1.2.3");
             
+            
             // then, set application-specific parameters
             s_instance.SetCustomSessionData("name", "bob");
             s_instance.SetCustomSessionData("payment_tier", "none");
@@ -38,13 +39,20 @@ namespace Platoon
             s_instance.SetCustomSessionData("vendor", "steam");
 
             // Let the system know we're interested in remote flags
-            // The provided callback will be called when the flags are received and
-            // ready top be queried
-            // Alternatively, AreFlagsReady() at any point.
-            s_instance.EnableFlags(OnPlatoonReady);
+            // If we're not, then it saves some server-side overhead
+            s_instance.EnableFlags();
             
-            // and once it's all set up, start the session
-            s_instance.StartSession();
+            // ... and once it's all set up, start the session
+            // The provided callback will be called when the session is initialised and
+            // ready to receive events. At this point, the feature flags can also be queried
+            // Alternatively, IsReady() at any point.
+            s_instance.StartSession(OnPlatoonReady);
+
+            // ERROR - this will fail because the session is not yet ready
+            // TODO - might want to catch these internally and process them once the 
+            // server has replied with the begun session??
+            s_instance.AddEvent("failing event");
+
         }
 
         // TODO : Do we need to deal with OnAPplicationFocus & OnApplicationPause?

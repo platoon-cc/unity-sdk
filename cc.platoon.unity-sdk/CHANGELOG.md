@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.9
+
+### Changed
+
+- The FlagsReady callback has been repurposed so that it is passed to the general StartSession function. This provides a way to know when it is safe to start sending events AND query flags. Null can be passed if you don't care.
+- The api/init function now passes local time to the server so that the implicit $sessionBegin event has client time
+  rather than server time
+
+### Fixed
+
+- Calls the heartbeat every 20 seconds rather than mistakenly only once
+- Fixes an issue where there were two code-paths for event adding and one didn't actually store the event into the event buffer
+
+## 0.1.8
+
+### Added
+
+- New 'feature flag' system
+
 ## 0.0.7
 
 ### Changed
