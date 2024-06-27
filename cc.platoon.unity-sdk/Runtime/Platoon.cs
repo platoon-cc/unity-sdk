@@ -16,8 +16,8 @@ namespace Platoon
         private bool _ready = false;
         private MonoBehaviour _parent;
         private string _accessToken;
-        private JSONArray _eventBuffer;
         private int _eventMaxToBuffer = 50;
+        private JSONArray _eventBuffer = new() { };
         private JSONObject _commonPayload = new() { };
         private JSONObject _initPayload = new() { };
         private JSONObject _flags;
@@ -52,10 +52,15 @@ namespace Platoon
         {
             Debug.Log("Platoon: Closing");
             AddEvent("$sessionEnd");
-            SendEvents();
             this.Activate(false);
+            SendEvents(false);
+            // #if UNITY_STANDALONE
+            //             System.Threading.Thread.Sleep(1000);
+            // #endif
             _initPayload = null;
             _commonPayload = null;
+            _eventBuffer = null;
+            _flags = null;
         }
 
         public void EnableFlags()
@@ -108,7 +113,7 @@ namespace Platoon
 
                 var data = newEvent.ToString();
                 Debug.LogFormat("Platoon: Sending init {0}", data);
-                _parent.StartCoroutine(Post("api/init", data, requestCallbackInit));
+                _parent.StartCoroutine(AsyncRequest("api/init", data, requestCallbackInit));
             }
         }
 
@@ -182,31 +187,28 @@ namespace Platoon
                 _active = enable;
                 if (enable)
                 {
-                    _eventBuffer = new JSONArray();
                     StartHeartbeat();
                 }
                 else
                 {
-                    _eventBuffer = null;
                     EndHeartbeat();
                 }
             }
         }
 
-        private void SendEvents()
+        private void SendEvents(bool async = true)
         {
-            if (_active)
+            if (_eventBuffer.Count > 0)
             {
-                if (_eventBuffer.Count > 0)
-                {
-                    Debug.LogFormat("Platoon: Sending {0} events", _eventBuffer.Count);
-                    var data = _eventBuffer.ToString();
-                    _parent.StartCoroutine(Post("api/ingest", data));
-
-                    // TODO : generally better approach to dealing with memory - freelists etc
-                    // Probably some sort of double-buffering too, in case the send fails
-                    _eventBuffer.Clear();
-                }
+                Debug.LogFormat("Platoon: Sending {0} events", _eventBuffer.Count);
+                var data = _eventBuffer.ToString();
+                if (async)
+                    _parent.StartCoroutine(AsyncRequest("api/ingest", data));
+                else
+                    SyncRequest("api/ingest", data);
+                // TODO : generally better approach to dealing with memory - freelists etc
+                // Probably some sort of double-buffering too, in case the send fails
+                _eventBuffer.Clear();
             }
         }
 
@@ -220,42 +222,58 @@ namespace Platoon
             }
         }
 
-        private IEnumerator Post(string uri, string data, requestCallback cb = null)
+        private IEnumerator AsyncRequest(string uri, string data, requestCallback cb = null)
         {
-            using UnityWebRequest webRequest = CreatePost(uri, data);
-            yield return webRequest.SendWebRequest();
+            using (UnityWebRequest request = SetupRequest(uri, data))
+            {
+                yield return request.SendWebRequest();
+                HandleRequestResponse(request, cb);
+            }
+        }
+        private void SyncRequest(string uri, string data)
+        {
+            using (UnityWebRequest request = SetupRequest(uri, data))
+            {
+                request.SendWebRequest();
+                while (!request.isDone) { }
+                HandleRequestResponse(request);
+            }
+        }
 
-            switch (webRequest.result)
+        private UnityWebRequest SetupRequest(string uri, string data)
+        {
+            UnityWebRequest request = new UnityWebRequest(BaseUrl + "/" + uri, "POST");
+            request.SetRequestHeader("X-API-KEY", _accessToken);
+            request.disposeDownloadHandlerOnDispose = true;
+            request.disposeUploadHandlerOnDispose = true;
+            request.downloadHandler = new DownloadHandlerBuffer();
+            if (!string.IsNullOrEmpty(data))
+            {
+                byte[] postRaw = Encoding.UTF8.GetBytes(data);
+                request.uploadHandler = new UploadHandlerRaw(postRaw);
+                request.uploadHandler.contentType = "application/json";
+            }
+            return request;
+        }
+
+        private void HandleRequestResponse(UnityWebRequest request, requestCallback cb = null)
+        {
+
+            switch (request.result)
             {
                 case UnityWebRequest.Result.ConnectionError:
                 case UnityWebRequest.Result.DataProcessingError:
-                    Debug.LogError("Platoon: Error: " + webRequest.error);
+                    Debug.LogError("Platoon: Error: " + request.error);
                     Debug.Log("Disabling any further sending");
                     this.Activate(false);
                     break;
                 case UnityWebRequest.Result.ProtocolError:
-                    Debug.LogError("Platoon: HTTP Error: " + webRequest.error);
+                    Debug.LogError("Platoon: HTTP Error: " + request.error);
                     break;
                 case UnityWebRequest.Result.Success:
-                    cb?.Invoke(webRequest.downloadHandler.text);
+                    cb?.Invoke(request.downloadHandler.text);
                     break;
             }
-        }
-
-        private UnityWebRequest CreatePost(string uri, string data)
-        {
-            string url = BaseUrl + "/" + uri;
-            byte[] postRaw = Encoding.UTF8.GetBytes(data);
-            var request = new UnityWebRequest(url, "POST")
-            {
-                downloadHandler = new DownloadHandlerBuffer(),
-                uploadHandler = new UploadHandlerRaw(postRaw)
-                {
-                    contentType = "application/json"
-                }
-            };
-            request.SetRequestHeader("X-API-KEY", _accessToken);
-            return request;
         }
 
     }

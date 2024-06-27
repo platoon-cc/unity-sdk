@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace Platoon
@@ -52,10 +53,9 @@ namespace Platoon
             // TODO - might want to catch these internally and process them once the 
             // server has replied with the begun session??
             s_instance.AddEvent("failing event");
-
         }
 
-        // TODO : Do we need to deal with OnAPplicationFocus & OnApplicationPause?
+        // TODO : Do we need to deal with OnApplicationFocus & OnApplicationPause?
         public void OnApplicationQuit()
         {
             s_instance.Close();

@@ -15,5 +15,5 @@
 		"url": "git+https://github.com/platoon-cc/unity-sdk"
 	},
 	"unity": "2021.3",
-	"version": "0.1.9"
+	"version": "0.1.10"
 }
