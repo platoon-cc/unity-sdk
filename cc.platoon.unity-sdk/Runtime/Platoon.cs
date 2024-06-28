@@ -137,10 +137,10 @@ namespace Platoon
 
         public void AddEvent(string name)
         {
-            AddEvent(name, null);
+            AddEvent<string>(name, null);
         }
 
-        public void AddEvent(string name, Dictionary<string, object> payload)
+        public void AddEvent<T>(string name, Dictionary<string, T> payload)
         {
             if (_active)
             {

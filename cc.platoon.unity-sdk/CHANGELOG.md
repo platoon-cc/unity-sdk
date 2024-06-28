@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.11
+
+### Added
+
+- New 'examples' directory to show different ways of using
+
+### Changed
+
+- Removed the PlatoonManager.cs class. Instead, copy one of the examples into your project as a starting point
+- Changed the prototype of AddEvent to accept a payload Dictionary with generic value type
+
+## 0.1.10
+
+### Changed
+
+Event sending is now split into asynchronous and synchronous. Async is used when the application is running normally and synchronous is used when the application is closing down.
+
 ## 0.1.9
 
 ### Changed
