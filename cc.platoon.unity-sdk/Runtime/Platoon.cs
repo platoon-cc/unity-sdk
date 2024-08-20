@@ -6,7 +6,6 @@ using UnityEngine;
 using UnityEngine.Networking;
 
 using SimpleJSON;
-using UnityEditorInternal;
 
 namespace Platoon
 {

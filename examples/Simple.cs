@@ -67,7 +67,7 @@ public class Simple : MonoBehaviour
         Debug.LogFormat("Bob payload? {0}", s_instance.GetFlagPayload("test2"));
 
         s_instance.AddEvent("empty_event");
-        s_instance.AddEvent("integer_event", new Dictionary<string, int>{{ "fred", 123}} );
-        s_instance.AddEvent("complex_event", new Dictionary<string, object>{{ "fred", 123}, {"fred2", "hello"}} );
+        s_instance.AddEvent("integer_event", new Dictionary<string, int> { { "fred", 123 } });
+        s_instance.AddEvent("complex_event", new Dictionary<string, object> { { "fred", 123 }, { "fred2", "hello" } });
     }
 }
