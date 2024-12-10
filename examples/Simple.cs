@@ -9,6 +9,7 @@ public class Simple : MonoBehaviour
     // in place but avoid any sending, processing or memory overhead
     public bool active = true;
     public bool debugMode = false;
+    public bool quietMode = false;
     public string debugUrl = "http://localhost:9998";
     public string accessToken = "";
 
@@ -23,6 +24,11 @@ public class Simple : MonoBehaviour
         if (debugMode)
         {
             s_instance.BaseUrl = debugUrl;
+        }
+
+        if (quietMode)
+        {
+            s_instance.Quiet = quietMode;
         }
 
         // by default, the Application.version will be used for the session's version parameter
@@ -49,7 +55,7 @@ public class Simple : MonoBehaviour
         // ERROR - this will fail because the session is not yet ready
         // TODO - might want to catch these internally and process them once the 
         // server has replied with the begun session??
-        s_instance.AddEvent("failing event");
+        // s_instance.AddEvent("failing event");
     }
 
     // TODO : Do we need to deal with OnApplicationFocus & OnApplicationPause?

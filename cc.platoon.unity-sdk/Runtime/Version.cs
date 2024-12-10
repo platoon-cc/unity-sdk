@@ -2,6 +2,6 @@ namespace Platoon
 {
 	public class Version
 	{
-		public static string SDK = "unity 0.1.12";
+		public static string SDK = "unity 0.1.13";
 	}
 }

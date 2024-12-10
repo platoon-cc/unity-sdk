@@ -30,13 +30,29 @@ namespace Platoon
 
         // Public interface
         public string BaseUrl { get; set; }
+        public bool Quiet { get; set; }
+
+        public void _Debug(string logMsg) {
+            if(!Quiet)
+                Debug.Log(logMsg);
+        }
+
+        public void _DebugError(string logMsg) {
+            if(!Quiet)
+                Debug.LogError(logMsg);
+        }
+
+        public void _DebugFormat(string format, params object[] args) {
+            if(!Quiet)
+                Debug.LogFormat(format, args);
+        }
+
         public PlatoonSDK(MonoBehaviour parent, string accessToken, string userId, bool active)
         {
             BaseUrl = "https://platoon.cc";
             this._parent = parent;
             this._accessToken = accessToken;
             _commonPayload.Add("user_id", userId);
-            Debug.Log("Platoon: Opening");
 
             _initPayload.Add("version", Application.version);
             _initPayload.Add("platform", Application.platform.ToString());
@@ -49,7 +65,7 @@ namespace Platoon
 
         public void Close()
         {
-            Debug.Log("Platoon: Closing");
+            _Debug("Platoon: Closing");
             AddEvent("$sessionEnd");
             this.Activate(false);
             SendEvents(false);
@@ -111,22 +127,22 @@ namespace Platoon
                 }
 
                 var data = newEvent.ToString();
-                Debug.LogFormat("Platoon: Sending init {0}", data);
+                _DebugFormat("Platoon: Sending init {0}", data);
                 _parent.StartCoroutine(AsyncRequest("api/init", data, requestCallbackInit));
             }
         }
 
         void requestCallbackInit(string data)
         {
-            Debug.Log("Callback received: " + data);
+            _Debug("Callback received: " + data);
             var parsed = JSON.Parse(data);
             // var server_ts = parsed["server_ts"];
-            // Debug.Log(server_ts);
+            // _Debug(server_ts);
             _commonPayload.Add("session_id", parsed["session_id"]);
 
             _flags = parsed["flags"].AsObject;
             _ready = true;
-            Debug.Log(_flags);
+            _Debug(_flags);
 
             if (_readyCB != null)
             {
@@ -145,7 +161,7 @@ namespace Platoon
             {
                 if (!_ready)
                 {
-                    Debug.LogError("Adding an event before the session is ready");
+                    _DebugError("Adding an event before the session is ready");
                     return;
                 }
                 var newEvent = _commonPayload.Clone();
@@ -199,7 +215,7 @@ namespace Platoon
         {
             if (_eventBuffer.Count > 0)
             {
-                Debug.LogFormat("Platoon: Sending {0} events", _eventBuffer.Count);
+                _DebugFormat("Platoon: Sending {0} events", _eventBuffer.Count);
                 var data = _eventBuffer.ToString();
                 if (async)
                     _parent.StartCoroutine(AsyncRequest("api/ingest", data));
@@ -216,7 +232,7 @@ namespace Platoon
             while (_active)
             {
                 yield return new WaitForSecondsRealtime(_heartbeatFrequency);
-                Debug.Log("Platoon: Heartbeat");
+                _Debug("Platoon: Heartbeat");
                 SendEvents();
             }
         }
@@ -262,12 +278,12 @@ namespace Platoon
             {
                 case UnityWebRequest.Result.ConnectionError:
                 case UnityWebRequest.Result.DataProcessingError:
-                    Debug.LogError("Platoon: Error: " + request.error);
-                    Debug.Log("Disabling any further sending");
+                    _DebugError("Platoon: Error: " + request.error);
+                    _Debug("Disabling any further sending");
                     this.Activate(false);
                     break;
                 case UnityWebRequest.Result.ProtocolError:
-                    Debug.LogError("Platoon: HTTP Error: " + request.error);
+                    _DebugError("Platoon: HTTP Error: " + request.error);
                     break;
                 case UnityWebRequest.Result.Success:
                     cb?.Invoke(request.downloadHandler.text);
