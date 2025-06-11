@@ -10,7 +10,7 @@ public class Simple : MonoBehaviour
     public bool active = true;
     public bool debugMode = false;
     public bool quietMode = false;
-    public string debugUrl = "http://localhost:9998";
+    public string debugUrl = "api.localhost:9999";
     public string accessToken = "";
 
     Platoon.PlatoonSDK s_instance;
@@ -74,6 +74,13 @@ public class Simple : MonoBehaviour
 
         s_instance.AddEvent("empty_event");
         s_instance.AddEvent("integer_event", new Dictionary<string, int> { { "fred", 123 } });
-        s_instance.AddEvent("complex_event", new Dictionary<string, object> { { "fred", 123 }, { "fred2", "hello" } });
+        s_instance.AddEvent("complex_event", new Dictionary<string, object> { 
+            { "fred", 123 }, 
+            { "fred2", "hello" },
+            { "fred3", new Dictionary<string, int>{
+                {"Axe", 1}, 
+                {"Sword", 2}
+            }}
+        });
     }
 }

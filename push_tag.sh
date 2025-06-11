@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 export VERSION=$(cat .version)
 echo Adding git tag with version v${VERSION}

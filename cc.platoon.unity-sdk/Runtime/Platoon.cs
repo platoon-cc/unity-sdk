@@ -49,7 +49,7 @@ namespace Platoon
 
         public PlatoonSDK(MonoBehaviour parent, string accessToken, string userId, bool active)
         {
-            BaseUrl = "https://platoon.cc";
+            BaseUrl = "https://api.platoon.cc";
             this._parent = parent;
             this._accessToken = accessToken;
             _commonPayload.Add("user_id", userId);
@@ -128,7 +128,7 @@ namespace Platoon
 
                 var data = newEvent.ToString();
                 _DebugFormat("Platoon: Sending init {0}", data);
-                _parent.StartCoroutine(AsyncRequest("api/init", data, requestCallbackInit));
+                _parent.StartCoroutine(AsyncRequest("init", data, requestCallbackInit));
             }
         }
 
@@ -218,9 +218,9 @@ namespace Platoon
                 _DebugFormat("Platoon: Sending {0} events", _eventBuffer.Count);
                 var data = _eventBuffer.ToString();
                 if (async)
-                    _parent.StartCoroutine(AsyncRequest("api/ingest", data));
+                    _parent.StartCoroutine(AsyncRequest("ingest", data));
                 else
-                    SyncRequest("api/ingest", data);
+                    SyncRequest("ingest", data);
                 // TODO : generally better approach to dealing with memory - freelists etc
                 // Probably some sort of double-buffering too, in case the send fails
                 _eventBuffer.Clear();

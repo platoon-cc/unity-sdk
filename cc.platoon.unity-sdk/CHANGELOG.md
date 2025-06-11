@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.14
+
+### Changed
+
+- Default domain is now https://api.platoon.cc
+
+## 0.1.13
+
+### Added
+
+- Option to disable debug logging - Quiet Mode
+
 ## 0.1.11
 
 ### Added
